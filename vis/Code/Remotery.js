@@ -442,7 +442,7 @@ Remotery = (function()
         json += ", ";
         json += "\"args\": ";
             json += "{";
-            json += BuildStringElemJSON("name", "Farming Simulator 2019");
+            json += BuildStringElemJSON("name", "ProjectName");
             json += "}";
         json += "}";
 
