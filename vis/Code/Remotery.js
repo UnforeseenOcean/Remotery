@@ -60,6 +60,7 @@ Remotery = (function()
         // Create required windows
         this.TitleWindow = new TitleWindow(this.WindowManager, this.Settings, this.Server, this.ConnectionAddress);
         this.TitleWindow.SetConnectionAddressChanged(Bind(OnAddressChanged, this));
+        this.TitleWindow.SetOnDumpPressed(Bind(OnDumpPressed, this));
         this.TimelineWindow = new TimelineWindow(this.WindowManager, this.Settings, this.Server, Bind(OnTimelineCheck, this));
         this.TimelineWindow.SetOnHover(Bind(OnSampleHover, this));
         this.TimelineWindow.SetOnSelected(Bind(OnSampleSelected, this));
@@ -332,6 +333,154 @@ Remotery = (function()
         for (var i in self.SampleWindows)
             self.SampleWindows[i].WindowResized(self.TimelineWindow.Window, self.Console.Window);
     }
+
+
+	function OnDumpPressed(self)
+	{
+		var text = GenerateJSONTrace(self);
+		var filename = "trace.json";
+		
+		MakeDownload(text, filename);
+    }
+
+
+	function BuildElemJSON(desc, value)
+    {
+    	return "\"" + desc + "\": " + value;
+    }
+
+
+	function BuildStringElemJSON(desc, value)
+    {
+    	return "\"" + desc + "\": \"" + value + "\"";
+    }
+
+
+    function SampleToJSON(sample, threadId)
+    {
+        // {"name": "Asub", "cat": "PERF", "ph": "X", "pid": 22630, "tid": 22630, "ts": 829, "dur": 666},
+
+        var json = "";
+        json += "{";
+        json += BuildStringElemJSON("name", sample.name.string);
+        //json += ", ";
+        //json += BuildStringElemJSON("cat", "engine");
+        json += ", ";
+        json += BuildStringElemJSON("ph", "X");
+        json += ", ";
+        json += BuildElemJSON("pid", 666);
+        json += ", ";
+        json += BuildElemJSON("tid", threadId);
+        json += ", ";
+        json += BuildElemJSON("ts", sample.us_start);
+        json += ", ";
+        json += BuildElemJSON("dur", sample.us_length);
+        json += "}";
+
+        if (sample.children != null)
+        {
+            for(var i in sample.children)
+            {
+                var childSample = sample.children[i];
+                
+                json += ",\n";
+                json += SampleToJSON(childSample, threadId);
+            }
+        }
+
+        return json;
+    }
+
+
+	function TimelineRowToJSON(row, rowId)
+	{
+        var json = "";
+
+        json += "{";
+        json += BuildStringElemJSON("name", "thread_name");
+        json += ", ";
+        json += BuildStringElemJSON("ph", "M");
+        json += ", ";
+        json += BuildElemJSON("pid", 666);
+        json += ", ";
+        json += BuildElemJSON("tid", rowId);
+        json += ", ";
+        json += "\"args\": ";
+            json += "{";
+            json += BuildStringElemJSON("name", row.Name);
+            json += "}";
+        json += "}";
+        
+        for (var frameIndex in row.FrameHistory)
+        {
+            var frame = row.FrameHistory[frameIndex];   
+
+            for (var sampleIndex in frame.Samples)
+            {
+                var sample = frame.Samples[sampleIndex];
+
+                json += ",\n";
+				json += SampleToJSON(sample, rowId);
+            }
+        }
+
+		return json;
+    }
+    
+	function TimelineToJSON(timeline)
+	{
+		// JSON Object format
+        // https://docs.google.com/document/d/1CvAClvFfyA5R-PhYUmn5OOQtYMH4h6I0nSsKchNAySU/edit#
+        var json = "{\n\"traceEvents\": [\n";      
+
+        json += "{";
+        json += BuildStringElemJSON("name", "process_name");
+        json += ", ";
+        json += BuildStringElemJSON("ph", "M");
+        json += ", ";
+        json += BuildElemJSON("pid", 666);
+        json += ", ";
+        json += "\"args\": ";
+            json += "{";
+            json += BuildStringElemJSON("name", "Farming Simulator 2019");
+            json += "}";
+        json += "}";
+
+		for (var i in timeline.ThreadRows)
+		{
+			var thread_row = timeline.ThreadRows[i];
+
+            json += ",\n";
+			json += TimelineRowToJSON(thread_row, i);
+		}
+
+		json += "\n]\n}";
+
+		return json;
+    }
+    
+
+	function GenerateJSONTrace(self)
+	{
+        return TimelineToJSON(self.TimelineWindow);
+	}
+
+
+	function MakeDownload(text, filename)
+	{
+		var link = document.createElement("a");
+		link.setAttribute("target","_blank");
+		if(Blob !== undefined) {
+			var blob = new Blob([text], {type: "text/plain;charset=utf-8"});
+			link.setAttribute("href", URL.createObjectURL(blob));
+		} else {
+			link.setAttribute("href","data:text/plain," + encodeURIComponent(text));
+		}
+		link.setAttribute("download",filename);
+		document.body.appendChild(link);
+		link.click();
+		document.body.removeChild(link);
+	}
 
 
     return Remotery;

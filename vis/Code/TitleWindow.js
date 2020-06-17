@@ -17,6 +17,9 @@ TitleWindow = (function()
 		this.PauseButton = this.Window.AddControlNew(new WM.Button("Pause", 5, 5, { toggle: true }));
 		this.PauseButton.SetOnClick(Bind(OnPausePressed, this));
 
+		// Setup dump button
+		this.DumpButton = this.Window.AddControlNew(new WM.Button("Dump 'trace.json'", 5, 5, { toggle: false }));
+
 		server.AddMessageHandler("PING", Bind(OnPing, this));
 		
 		this.Window.SetOnResize(Bind(OnUserResize, this));
@@ -42,7 +45,8 @@ TitleWindow = (function()
 
 	function ResizeInternals(self)
 	{
-		self.PauseButton.SetPosition(self.Window.Size[0] - 60, 5);
+		self.PauseButton.SetPosition(self.Window.Size[0] - 60, 7);
+		self.DumpButton.SetPosition(self.Window.Size[0] - 170, 7);
 	}
 
 
@@ -53,6 +57,11 @@ TitleWindow = (function()
 			self.PauseButton.SetText("Paused");
 		else
 			self.PauseButton.SetText("Pause");
+	}	
+	
+	TitleWindow.prototype.SetOnDumpPressed = function(handler)
+	{
+		this.DumpButton.SetOnClick(handler);
 	}
 
 
